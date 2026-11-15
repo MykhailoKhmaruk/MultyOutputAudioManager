@@ -1,6 +1,7 @@
 using System.Drawing;
 using System.Drawing.Text;
 using System.Windows.Forms;
+using MultyAudioOutput.Localization;
 using MultyAudioOutput.Platform;
 
 namespace MultyAudioOutput.Tray;
@@ -8,34 +9,61 @@ namespace MultyAudioOutput.Tray;
 internal sealed class TrayIconService : IDisposable
 {
     private readonly NotifyIcon _notifyIcon;
+    private readonly ToolStripMenuItem _openItem;
+    private readonly ToolStripMenuItem _settingsItem;
     private readonly ToolStripMenuItem _autoStartItem;
+    private readonly ToolStripMenuItem _languageItem;
+    private readonly ToolStripMenuItem _exitItem;
     private Icon? _icon;
 
-    public TrayIconService(Action openFlyout, Action openSettings, Action exit)
+    public TrayIconService(Action openFlyout, Action openSettings, Action<string> setLanguage, Action exit)
     {
-        _autoStartItem = new ToolStripMenuItem("Запускати разом з Windows") { CheckOnClick = true };
-        _autoStartItem.Click += (_, _) => AutoStart.Set(_autoStartItem.Checked);
-
         var menu = new ContextMenuStrip();
-        menu.Items.Add(new ToolStripMenuItem("Відкрити панель", null, (_, _) => openFlyout()) { Font = new Font(menu.Font, FontStyle.Bold) });
-        menu.Items.Add(new ToolStripMenuItem("Налаштування…", null, (_, _) => openSettings()));
-        menu.Items.Add(_autoStartItem);
-        menu.Items.Add(new ToolStripSeparator());
-        menu.Items.Add(new ToolStripMenuItem("Вихід", null, (_, _) => exit()));
-        menu.Opening += (_, _) => _autoStartItem.Checked = AutoStart.IsEnabled;
-
-        _notifyIcon = new NotifyIcon
+        _openItem = new ToolStripMenuItem("", null, (_, _) => openFlyout()) { Font = new Font(menu.Font, FontStyle.Bold) };
+        _settingsItem = new ToolStripMenuItem("", null, (_, _) => openSettings());
+        _autoStartItem = new ToolStripMenuItem("") { CheckOnClick = true };
+        _autoStartItem.Click += (_, _) => AutoStart.Set(_autoStartItem.Checked);
+        _languageItem = new ToolStripMenuItem("");
+        foreach (var language in Loc.Languages)
         {
-            Text = "MultyAudioOutput — вивід звуку для програм",
-            ContextMenuStrip = menu,
+            var code = language.Code;
+            _languageItem.DropDownItems.Add(new ToolStripMenuItem(language.NativeName, null, (_, _) => setLanguage(code)) { Tag = code });
+        }
+        _exitItem = new ToolStripMenuItem("", null, (_, _) => exit());
+
+        menu.Items.Add(_openItem);
+        menu.Items.Add(_settingsItem);
+        menu.Items.Add(_autoStartItem);
+        menu.Items.Add(_languageItem);
+        menu.Items.Add(new ToolStripSeparator());
+        menu.Items.Add(_exitItem);
+        menu.Opening += (_, _) =>
+        {
+            _autoStartItem.Checked = AutoStart.IsEnabled;
+            foreach (ToolStripMenuItem item in _languageItem.DropDownItems)
+                item.Checked = (string?)item.Tag == Loc.I.Language;
         };
+
+        _notifyIcon = new NotifyIcon { ContextMenuStrip = menu };
         _notifyIcon.MouseClick += (_, e) =>
         {
             if (e.Button == MouseButtons.Left) openFlyout();
         };
 
+        UpdateTexts();
         UpdateTheme();
         _notifyIcon.Visible = true;
+    }
+
+    public void UpdateTexts()
+    {
+        _openItem.Text = Loc.T("tray.open");
+        _settingsItem.Text = Loc.T("tray.settings");
+        _autoStartItem.Text = Loc.T("tray.autostart");
+        _languageItem.Text = Loc.T("tray.language");
+        _exitItem.Text = Loc.T("tray.exit");
+        var tooltip = Loc.T("tray.tooltip");
+        _notifyIcon.Text = tooltip.Length > 63 ? tooltip[..63] : tooltip; // NotifyIcon limit
     }
 
     public void ShowInfo(string title, string text) =>

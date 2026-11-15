@@ -2,6 +2,7 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="clr-namespace:MultyAudioOutput.ViewModels"
+        xmlns:l="clr-namespace:MultyAudioOutput.Localization"
         Title="MultyAudioOutput"
         Width="400" SizeToContent="Height"
         WindowStyle="None" AllowsTransparency="True" Background="Transparent"
@@ -15,24 +16,24 @@
         </Border.Effect>
         <DockPanel>
             <!-- Header -->
-            <Grid DockPanel.Dock="Top" Margin="2,0,0,8">
+            <Grid DockPanel.Dock="Top" Margin="2,0,0,4">
                 <Grid.ColumnDefinitions>
                     <ColumnDefinition Width="*" />
                     <ColumnDefinition Width="Auto" />
                 </Grid.ColumnDefinitions>
-                <TextBlock Text="Вивід звуку для програм" FontSize="15" FontWeight="SemiBold" VerticalAlignment="Center" />
-                <Button Grid.Column="1" Style="{StaticResource IconBtn}" Content="&#xE713;" ToolTip="Налаштування"
+                <StackPanel VerticalAlignment="Center">
+                    <TextBlock Text="{l:Tr flyout.title}" FontSize="15" FontWeight="SemiBold" />
+                    <TextBlock Text="{l:Tr flyout.subtitle}" FontSize="11"
+                               Foreground="{DynamicResource SubtleFgBrush}" />
+                </StackPanel>
+                <Button Grid.Column="1" Style="{StaticResource IconBtn}" Content="&#xE713;" ToolTip="{l:Tr flyout.settings}"
                         Command="{Binding OpenSettingsCommand}" />
             </Grid>
 
             <!-- Footer -->
-            <TextBlock DockPanel.Dock="Bottom" Margin="2,8,0,0" FontSize="11" TextWrapping="Wrap"
-                       Foreground="{DynamicResource SubtleFgBrush}" Text="{Binding HotkeyHint}" />
-
-            <Grid>
-                <TextBlock Text="Зараз жодна програма не відтворює звук.&#x0a;Запустіть відео чи гру — вона з'явиться тут."
-                           Margin="2,16" TextWrapping="Wrap" TextAlignment="Center"
-                           Foreground="{DynamicResource SubtleFgBrush}">
+            <StackPanel DockPanel.Dock="Bottom" Margin="2,8,0,0">
+                <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource SubtleFgBrush}"
+                           Text="{l:Tr flyout.empty}">
                     <TextBlock.Style>
                         <Style TargetType="TextBlock">
                             <Setter Property="Visibility" Value="Collapsed" />
@@ -44,72 +45,144 @@
                         </Style>
                     </TextBlock.Style>
                 </TextBlock>
+                <TextBlock FontSize="11" TextWrapping="Wrap" Foreground="{DynamicResource SubtleFgBrush}" Text="{Binding HotkeyHint}" />
+            </StackPanel>
 
-                <ScrollViewer MaxHeight="520" VerticalScrollBarVisibility="Auto">
-                    <ItemsControl ItemsSource="{Binding Apps}">
-                        <ItemsControl.ItemTemplate>
-                            <DataTemplate DataType="{x:Type vm:AppRowViewModel}">
-                                <Border Background="{DynamicResource RowBrush}" CornerRadius="6" Padding="10,8" Margin="0,3">
-                                    <Grid>
-                                        <Grid.RowDefinitions>
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                            <RowDefinition Height="Auto" />
-                                        </Grid.RowDefinitions>
+            <ScrollViewer MaxHeight="560" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Groups}">
+                    <ItemsControl.ItemTemplate>
+                        <!-- Device card (drop target) -->
+                        <DataTemplate DataType="{x:Type vm:DeviceGroupViewModel}">
+                            <Border CornerRadius="8" Padding="10,8,10,10" Margin="0,4" BorderThickness="1.5" AllowDrop="True"
+                                    Background="{DynamicResource RowBrush}"
+                                    DragEnter="Group_DragOver" DragOver="Group_DragOver" DragLeave="Group_DragLeave" Drop="Group_Drop">
+                                <Border.Style>
+                                    <Style TargetType="Border">
+                                        <Setter Property="BorderBrush" Value="Transparent" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsDropTarget}" Value="True">
+                                                <Setter Property="BorderBrush" Value="{DynamicResource AccentBrush}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Border.Style>
+                                <StackPanel>
+                                    <Grid Margin="0,0,0,4">
                                         <Grid.ColumnDefinitions>
-                                            <ColumnDefinition Width="32" />
+                                            <ColumnDefinition Width="Auto" />
                                             <ColumnDefinition Width="*" />
                                             <ColumnDefinition Width="Auto" />
                                         </Grid.ColumnDefinitions>
-
-                                        <Image Source="{Binding Icon}" Width="22" Height="22" HorizontalAlignment="Left" VerticalAlignment="Center" />
-                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="250" />
-                                            <TextBlock Text="&#xE840;" FontFamily="{StaticResource IconFont}" FontSize="11" Margin="6,2,0,0"
-                                                       Foreground="{DynamicResource AccentBrush}" ToolTip="Вибір запам'ятовано"
-                                                       Visibility="{Binding IsRemembered, Converter={StaticResource BoolToVisibility}}" />
-                                        </StackPanel>
-                                        <Ellipse Grid.Column="2" Width="7" Height="7" Fill="{DynamicResource AccentBrush}" ToolTip="Зараз грає"
-                                                 VerticalAlignment="Center" Margin="0,0,4,0"
-                                                 Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibility}}" />
-
-                                        <ComboBox Grid.Row="1" Grid.Column="0" Grid.ColumnSpan="3" Margin="0,8,0,4"
-                                                  Style="{StaticResource FlatCombo}"
-                                                  ItemsSource="{Binding Devices}" SelectedItem="{Binding SelectedDevice, Mode=TwoWay}">
-                                            <ComboBox.ItemTemplate>
-                                                <DataTemplate>
-                                                    <TextBlock Text="{Binding Name}" TextTrimming="CharacterEllipsis" />
-                                                </DataTemplate>
-                                            </ComboBox.ItemTemplate>
-                                        </ComboBox>
-
-                                        <ToggleButton Grid.Row="2" Grid.Column="0" Margin="-6,0,0,0" IsChecked="{Binding IsMuted, Mode=TwoWay}">
-                                            <ToggleButton.Style>
-                                                <Style TargetType="ToggleButton" BasedOn="{StaticResource IconToggle}">
-                                                    <Setter Property="Content" Value="&#xE767;" />
-                                                    <Setter Property="ToolTip" Value="Вимкнути звук" />
-                                                    <Style.Triggers>
-                                                        <Trigger Property="IsChecked" Value="True">
-                                                            <Setter Property="Content" Value="&#xE74F;" />
-                                                            <Setter Property="ToolTip" Value="Увімкнути звук" />
-                                                        </Trigger>
-                                                    </Style.Triggers>
-                                                </Style>
-                                            </ToggleButton.Style>
-                                        </ToggleButton>
-                                        <Slider Grid.Row="2" Grid.Column="1" Style="{StaticResource FlatSlider}" VerticalAlignment="Center"
-                                                Minimum="0" Maximum="100" SmallChange="1" LargeChange="10"
-                                                Value="{Binding Volume, Mode=TwoWay}" />
-                                        <TextBlock Grid.Row="2" Grid.Column="2" MinWidth="28" TextAlignment="Right" VerticalAlignment="Center"
-                                                   Margin="8,0,0,0" Foreground="{DynamicResource SubtleFgBrush}"
-                                                   Text="{Binding Volume, StringFormat={}{0:0}}" />
+                                        <TextBlock Text="&#xE7F5;" FontFamily="{StaticResource IconFont}" FontSize="16"
+                                                   VerticalAlignment="Center" Margin="0,0,8,0" Foreground="{DynamicResource AccentBrush}" />
+                                        <TextBlock Grid.Column="1" Text="{Binding Name}" FontWeight="SemiBold"
+                                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center" ToolTip="{Binding Name}" />
+                                        <Border Grid.Column="2" CornerRadius="4" Padding="6,1" Margin="6,0,0,0"
+                                                Background="{DynamicResource ControlBrush}"
+                                                Visibility="{Binding IsDefault, Converter={StaticResource BoolToVisibility}}">
+                                            <TextBlock Text="{l:Tr flyout.systemBadge}" FontSize="11" Foreground="{DynamicResource SubtleFgBrush}" />
+                                        </Border>
                                     </Grid>
-                                </Border>
-                            </DataTemplate>
-                        </ItemsControl.ItemTemplate>
-                    </ItemsControl>
-                </ScrollViewer>
-            </Grid>
+
+                                    <!-- Empty placeholder -->
+                                    <Border CornerRadius="6" BorderThickness="1" BorderBrush="{DynamicResource BorderBrush}"
+                                            Padding="8,10" Margin="0,4,0,0">
+                                        <Border.Style>
+                                            <Style TargetType="Border">
+                                                <Setter Property="Visibility" Value="Collapsed" />
+                                                <Style.Triggers>
+                                                    <DataTrigger Binding="{Binding Apps.Count}" Value="0">
+                                                        <Setter Property="Visibility" Value="Visible" />
+                                                    </DataTrigger>
+                                                </Style.Triggers>
+                                            </Style>
+                                        </Border.Style>
+                                        <TextBlock Text="{l:Tr flyout.dropHere}" HorizontalAlignment="Center" FontSize="12"
+                                                   Foreground="{DynamicResource SubtleFgBrush}" />
+                                    </Border>
+
+                                    <ItemsControl ItemsSource="{Binding Apps}">
+                                        <ItemsControl.ItemTemplate>
+                                            <!-- App chip (drag source) -->
+                                            <DataTemplate DataType="{x:Type vm:AppRowViewModel}">
+                                                <Border CornerRadius="6" Padding="8,6" Margin="0,4,0,0" Cursor="SizeAll"
+                                                        Background="{DynamicResource ControlBrush}"
+                                                        PreviewMouseLeftButtonDown="Row_PreviewMouseLeftButtonDown"
+                                                        PreviewMouseMove="Row_PreviewMouseMove">
+                                                    <Border.Style>
+                                                        <Style TargetType="Border">
+                                                            <Setter Property="Opacity" Value="1" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsDragging}" Value="True">
+                                                                    <Setter Property="Opacity" Value="0.45" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </Border.Style>
+                                                    <Border.ContextMenu>
+                                                        <ContextMenu>
+                                                            <MenuItem Header="{l:Tr flyout.resetDefault}" Click="ResetToDefault_Click" />
+                                                        </ContextMenu>
+                                                    </Border.ContextMenu>
+                                                    <Grid>
+                                                        <Grid.RowDefinitions>
+                                                            <RowDefinition Height="Auto" />
+                                                            <RowDefinition Height="Auto" />
+                                                        </Grid.RowDefinitions>
+                                                        <Grid.ColumnDefinitions>
+                                                            <ColumnDefinition Width="30" />
+                                                            <ColumnDefinition Width="*" />
+                                                            <ColumnDefinition Width="Auto" />
+                                                        </Grid.ColumnDefinitions>
+
+                                                        <Image Source="{Binding Icon}" Width="20" Height="20" HorizontalAlignment="Left" VerticalAlignment="Center" />
+                                                        <StackPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding DisplayName}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" MaxWidth="220" />
+                                                            <TextBlock Text="&#xE840;" FontFamily="{StaticResource IconFont}" FontSize="11" Margin="6,2,0,0"
+                                                                       Foreground="{DynamicResource AccentBrush}" ToolTip="{l:Tr flyout.remembered}"
+                                                                       Visibility="{Binding IsRemembered, Converter={StaticResource BoolToVisibility}}" />
+                                                        </StackPanel>
+                                                        <StackPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center">
+                                                            <TextBlock Text="{l:Tr flyout.auto}" FontSize="11" Margin="0,0,6,0" Foreground="{DynamicResource SubtleFgBrush}"
+                                                                       ToolTip="{l:Tr flyout.autoTip}"
+                                                                       Visibility="{Binding IsFollowingDefault, Converter={StaticResource BoolToVisibility}}" />
+                                                            <Ellipse Width="7" Height="7" Fill="{DynamicResource AccentBrush}" ToolTip="{l:Tr flyout.playing}"
+                                                                     Visibility="{Binding IsActive, Converter={StaticResource BoolToVisibility}}" />
+                                                        </StackPanel>
+
+                                                        <ToggleButton Grid.Row="1" Grid.Column="0" Margin="-7,2,0,0" Width="28" Height="28"
+                                                                      IsChecked="{Binding IsMuted, Mode=TwoWay}">
+                                                            <ToggleButton.Style>
+                                                                <Style TargetType="ToggleButton" BasedOn="{StaticResource IconToggle}">
+                                                                    <Setter Property="Content" Value="&#xE767;" />
+                                                                    <Setter Property="ToolTip" Value="{l:Tr flyout.mute}" />
+                                                                    <Style.Triggers>
+                                                                        <Trigger Property="IsChecked" Value="True">
+                                                                            <Setter Property="Content" Value="&#xE74F;" />
+                                                                            <Setter Property="ToolTip" Value="{l:Tr flyout.unmute}" />
+                                                                        </Trigger>
+                                                                    </Style.Triggers>
+                                                                </Style>
+                                                            </ToggleButton.Style>
+                                                        </ToggleButton>
+                                                        <Slider Grid.Row="1" Grid.Column="1" Style="{StaticResource FlatSlider}" VerticalAlignment="Center"
+                                                                Margin="0,2,0,0" Cursor="Arrow"
+                                                                Minimum="0" Maximum="100" SmallChange="1" LargeChange="10"
+                                                                Value="{Binding Volume, Mode=TwoWay}" />
+                                                        <TextBlock Grid.Row="1" Grid.Column="2" MinWidth="28" TextAlignment="Right" VerticalAlignment="Center"
+                                                                   Margin="8,2,0,0" Foreground="{DynamicResource SubtleFgBrush}"
+                                                                   Text="{Binding Volume, StringFormat={}{0:0}}" />
+                                                    </Grid>
+                                                </Border>
+                                            </DataTemplate>
+                                        </ItemsControl.ItemTemplate>
+                                    </ItemsControl>
+                                </StackPanel>
+                            </Border>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
         </DockPanel>
     </Border>
 </Window>

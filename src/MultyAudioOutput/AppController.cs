@@ -2,6 +2,7 @@ using System.Windows;
 using System.Windows.Threading;
 using Microsoft.Win32;
 using MultyAudioOutput.Audio;
+using MultyAudioOutput.Localization;
 using MultyAudioOutput.Platform;
 using MultyAudioOutput.Rules;
 using MultyAudioOutput.Tray;
@@ -41,10 +42,13 @@ internal sealed class AppController : IAppActions, IDisposable
     public void Start(bool minimized)
     {
         _store.Load();
+        if (string.IsNullOrEmpty(Settings.Language)) Settings.Language = Loc.DefaultLanguage;
+        Loc.I.SetLanguage(Settings.Language, userChoice: false);
+        Loc.I.LanguageChanged += OnLanguageChanged;
         ThemeService.Apply(_app.Resources);
         AutoStart.RefreshPathIfEnabled();
 
-        _tray = new TrayIconService(ToggleFlyout, OpenSettings, () => _app.Shutdown());
+        _tray = new TrayIconService(ToggleFlyout, OpenSettings, SetLanguage, () => _app.Shutdown());
         _hotkeys = new HotkeyService();
         RegisterHotkeys(showErrors: true);
 
@@ -53,13 +57,11 @@ internal sealed class AppController : IAppActions, IDisposable
 
         if (!AudioPolicyConfig.IsSupported)
         {
-            _tray.ShowWarning("MultyAudioOutput",
-                "Ця версія Windows не підтримує вибір виходу звуку для окремих програм.");
+            _tray.ShowWarning("MultyAudioOutput", Loc.T("tray.unsupported"));
         }
         else if (!minimized)
         {
-            _tray.ShowInfo("MultyAudioOutput працює в треї",
-                "Клацніть іконку навушників, щоб вибрати вивід звуку для програм.");
+            _tray.ShowInfo(Loc.T("tray.runningTitle"), Loc.T("tray.runningText"));
         }
 
         Tick();
@@ -108,9 +110,7 @@ internal sealed class AppController : IAppActions, IDisposable
     public void ShowFlyout()
     {
         if (_flyout is null) return;
-        _flyoutVm.HotkeyHint = string.IsNullOrWhiteSpace(Settings.CycleHotkey)
-            ? ""
-            : $"{Settings.CycleHotkey} — перемкнути вихід програми в активному вікні";
+        UpdateHotkeyHint();
         try { RefreshFlyout(); }
         catch (Exception ex) { Log.Error("RefreshFlyout", ex); }
         _flyout.ShowFlyout();
@@ -179,7 +179,7 @@ internal sealed class AppController : IAppActions, IDisposable
         if (!_hotkeys.Register(HotkeyCycleId, Settings.CycleHotkey, CycleForegroundApp)) failed.Add(Settings.CycleHotkey);
         if (!_hotkeys.Register(HotkeyFlyoutId, Settings.FlyoutHotkey, ToggleFlyout)) failed.Add(Settings.FlyoutHotkey);
         if (showErrors && failed.Count > 0)
-            _tray?.ShowWarning("Гарячі клавіші", $"Не вдалося зареєструвати: {string.Join(", ", failed)}. Змініть їх у налаштуваннях.");
+            _tray?.ShowWarning(Loc.T("tray.hotkeysTitle"), Loc.F("tray.hotkeysFailed", string.Join(", ", failed)));
     }
 
     /// <summary>Moves the app of the foreground window to the next output device.</summary>
@@ -202,7 +202,7 @@ internal sealed class AppController : IAppActions, IDisposable
         var next = devices[(index + 1) % devices.Count];
 
         Route(info.Key, info.DisplayName, next.Id);
-        _tray?.ShowInfo(info.DisplayName, $"Звук → {next.Name}");
+        _tray?.ShowInfo(Loc.Name(info.DisplayName), Loc.F("tray.soundTo", Loc.Name(next.Name)));
     }
 
     // ---------- settings window API ----------
@@ -219,6 +219,25 @@ internal sealed class AppController : IAppActions, IDisposable
             : _hotkeys.Register(HotkeyFlyoutId, gesture, ToggleFlyout);
     }
 
+    public void SetLanguage(string code)
+    {
+        Settings.Language = code;
+        _store.Save();
+        Loc.I.SetLanguage(code, userChoice: true);
+    }
+
+    private void OnLanguageChanged()
+    {
+        _tray?.UpdateTexts();
+        UpdateHotkeyHint();
+        if (_flyout?.IsVisible == true) RefreshFlyout();
+    }
+
+    private void UpdateHotkeyHint() =>
+        _flyoutVm.HotkeyHint = string.IsNullOrWhiteSpace(Settings.CycleHotkey)
+            ? ""
+            : Loc.F("flyout.hotkeyHint", Settings.CycleHotkey);
+
     public void SetRemember(bool remember)
     {
         Settings.RememberChoices = remember;
@@ -232,10 +251,10 @@ internal sealed class AppController : IAppActions, IDisposable
             .OrderBy(r => r.Value.DisplayName, StringComparer.CurrentCultureIgnoreCase)
             .Select(r => new RuleRow(
                 r.Key,
-                string.IsNullOrWhiteSpace(r.Value.DisplayName) ? r.Key : r.Value.DisplayName,
-                $"({r.Key}.exe)",
-                string.IsNullOrWhiteSpace(r.Value.DeviceName) ? r.Value.DeviceId : r.Value.DeviceName,
-                present.Contains(r.Value.DeviceId) ? "" : "· не підключено"))
+                Loc.Name(string.IsNullOrWhiteSpace(r.Value.DisplayName) ? r.Key : r.Value.DisplayName),
+                Loc.I.IsRussian ? "" : $"({r.Key}.exe)",
+                Loc.Name(string.IsNullOrWhiteSpace(r.Value.DeviceName) ? r.Value.DeviceId : r.Value.DeviceName),
+                present.Contains(r.Value.DeviceId) ? "" : Loc.T("settings.notConnected")))
             .ToList();
     }
 
@@ -276,6 +295,7 @@ internal sealed class AppController : IAppActions, IDisposable
     {
         _timer.Stop();
         SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
+        Loc.I.LanguageChanged -= OnLanguageChanged;
         _hotkeys?.Dispose();
         _tray?.Dispose();
         _audio.Dispose();

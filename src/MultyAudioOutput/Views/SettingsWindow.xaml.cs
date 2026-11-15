@@ -1,6 +1,7 @@
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Input;
+using MultyAudioOutput.Localization;
 using MultyAudioOutput.Platform;
 
 namespace MultyAudioOutput.Views;
@@ -16,6 +17,9 @@ public partial class SettingsWindow : Window
     {
         _controller = controller;
         InitializeComponent();
+        LanguageCombo.ItemsSource = Loc.Languages;
+        Loc.I.LanguageChanged += OnLanguageChanged;
+        Closed += (_, _) => Loc.I.LanguageChanged -= OnLanguageChanged;
         Reload();
     }
 
@@ -23,10 +27,12 @@ public partial class SettingsWindow : Window
     {
         _loading = true;
         var settings = _controller.Settings;
+        LanguageCombo.SelectedItem = Loc.Languages.FirstOrDefault(l => l.Code == Loc.I.Language);
         AutoStartCheck.IsChecked = AutoStart.IsEnabled;
         RememberCheck.IsChecked = settings.RememberChoices;
         CycleHotkeyBox.Text = Display(settings.CycleHotkey);
         FlyoutHotkeyBox.Text = Display(settings.FlyoutHotkey);
+        HotkeyStatus.Text = Loc.T("settings.hotkeyHint");
 
         var rows = _controller.GetRuleRows();
         RulesList.ItemsSource = rows;
@@ -34,7 +40,16 @@ public partial class SettingsWindow : Window
         _loading = false;
     }
 
-    private static string Display(string hotkey) => string.IsNullOrWhiteSpace(hotkey) ? "вимкнено" : hotkey;
+    private void OnLanguageChanged() => Reload();
+
+    private static string Display(string hotkey) =>
+        string.IsNullOrWhiteSpace(hotkey) ? Loc.T("settings.off") : hotkey;
+
+    private void Language_Changed(object sender, SelectionChangedEventArgs e)
+    {
+        if (_loading || LanguageCombo.SelectedItem is not LanguageOption option) return;
+        _controller.SetLanguage(option.Code);
+    }
 
     private void AutoStart_Changed(object sender, RoutedEventArgs e)
     {
@@ -64,9 +79,7 @@ public partial class SettingsWindow : Window
 
         bool ok = _controller.SetHotkey((string)box.Tag == "cycle", gesture);
         box.Text = Display(gesture);
-        HotkeyStatus.Text = ok
-            ? "Збережено."
-            : $"Не вдалося зареєструвати {gesture} — комбінація зайнята іншою програмою. Спробуйте іншу.";
+        HotkeyStatus.Text = ok ? Loc.T("settings.saved") : Loc.F("settings.hotkeyTaken", gesture);
     }
 
     private void DeleteRule_Click(object sender, RoutedEventArgs e)
@@ -80,9 +93,8 @@ public partial class SettingsWindow : Window
 
     private void ResetAll_Click(object sender, RoutedEventArgs e)
     {
-        var answer = MessageBox.Show(this,
-            "Видалити всі збережені правила й повернути всі програми на системний пристрій виводу?",
-            "MultyAudioOutput", MessageBoxButton.YesNo, MessageBoxImage.Question);
+        var answer = MessageBox.Show(this, Loc.T("settings.resetConfirm"), "MultyAudioOutput",
+            MessageBoxButton.YesNo, MessageBoxImage.Question);
         if (answer != MessageBoxResult.Yes) return;
         _controller.ResetAll();
         Reload();

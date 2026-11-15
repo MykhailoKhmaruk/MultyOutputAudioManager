@@ -17,6 +17,8 @@ public sealed class AppSettings
     /// <summary>Key = process name in lower case (e.g. "chrome").</summary>
     public Dictionary<string, RouteRule> Rules { get; set; } = new(StringComparer.OrdinalIgnoreCase);
     public bool RememberChoices { get; set; } = true;
+    /// <summary>UI language code (pt/en/zh/uk/es/ru); empty = pick from the system on first start.</summary>
+    public string Language { get; set; } = "";
     public string CycleHotkey { get; set; } = "Ctrl+Alt+F10";
     public string FlyoutHotkey { get; set; } = "Ctrl+Alt+F11";
 }
