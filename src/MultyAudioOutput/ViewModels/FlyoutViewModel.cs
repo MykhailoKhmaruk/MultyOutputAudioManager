@@ -15,6 +15,7 @@ public interface IAppActions
     void SetVolume(string key, float volume);
     void SetMute(string key, bool mute);
     void OpenSettings();
+    void InstallUpdate();
 }
 
 /// <summary>Flyout: one card per output device, apps are dragged between cards.</summary>
@@ -29,9 +30,22 @@ public sealed partial class FlyoutViewModel : ObservableObject
 
     [ObservableProperty] private bool _hasApps;
     [ObservableProperty] private string _hotkeyHint = "";
+    [ObservableProperty] private bool _updateAvailable;
+    [ObservableProperty] private string _updateText = "";
+    [ObservableProperty] private bool _isUpdating;
 
     [RelayCommand]
     private void OpenSettings() => _actions.OpenSettings();
+
+    [RelayCommand]
+    private void InstallUpdate() => _actions.InstallUpdate();
+
+    /// <summary>null hides the update banner.</summary>
+    public void SetUpdate(string? text)
+    {
+        UpdateAvailable = text != null;
+        UpdateText = text ?? "";
+    }
 
     /// <summary>Called on drop: routes the app and moves its row right away (the next refresh confirms it).</summary>
     public void MoveApp(AppRowViewModel row, DeviceGroupViewModel target)

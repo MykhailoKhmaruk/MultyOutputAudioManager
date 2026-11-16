@@ -75,6 +75,25 @@
                     </Grid>
                 </Border>
 
+                <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Tr settings.updates}" />
+                <Border Style="{StaticResource Card}">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="Auto" />
+                            </Grid.ColumnDefinitions>
+                            <TextBlock x:Name="VersionText" VerticalAlignment="Center" />
+                            <Button x:Name="CheckUpdatesButton" Grid.Column="1" Style="{StaticResource FlatButton}"
+                                    Content="{l:Tr settings.checkNow}" Click="CheckUpdates_Click" />
+                        </Grid>
+                        <CheckBox x:Name="AutoUpdateCheck" Style="{StaticResource FlatCheck}" Margin="0,8,0,0"
+                                  Content="{l:Tr settings.autoUpdate}" Checked="AutoUpdate_Changed" Unchecked="AutoUpdate_Changed" />
+                        <TextBlock x:Name="UpdateStatus" FontSize="11" TextWrapping="Wrap" Margin="0,4,0,0"
+                                   Foreground="{DynamicResource SubtleFgBrush}" />
+                    </StackPanel>
+                </Border>
+
                 <TextBlock Style="{StaticResource SectionHeader}" Text="{l:Tr settings.rules}" />
                 <TextBlock x:Name="NoRulesText" Margin="2,0,0,6" Foreground="{DynamicResource SubtleFgBrush}" TextWrapping="Wrap"
                            Text="{l:Tr settings.noRules}" />

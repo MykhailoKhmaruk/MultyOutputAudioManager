@@ -12,9 +12,20 @@
     <NoWarn>$(NoWarn);WFAC010</NoWarn>
     <AssemblyName>MultyAudioOutput</AssemblyName>
     <Product>MultyAudioOutput</Product>
-    <Version>0.1.0</Version>
+    <!-- Bump for every GitHub release (tag vX.Y.Z) — the updater compares against it -->
+    <Version>0.2.0</Version>
     <ApplicationManifest>app.manifest</ApplicationManifest>
     <ApplicationIcon>Assets\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <!-- Release: one self-contained MultyAudioOutput.exe with nothing next to it -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release'">
+    <RuntimeIdentifier>win-x64</RuntimeIdentifier>
+    <SelfContained>true</SelfContained>
+    <PublishSingleFile>true</PublishSingleFile>
+    <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
+    <DebugType>none</DebugType>
   </PropertyGroup>
 
   <ItemGroup>

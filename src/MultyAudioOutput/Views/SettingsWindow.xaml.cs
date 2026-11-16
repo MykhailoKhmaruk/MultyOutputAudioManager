@@ -33,6 +33,8 @@ public partial class SettingsWindow : Window
         CycleHotkeyBox.Text = Display(settings.CycleHotkey);
         FlyoutHotkeyBox.Text = Display(settings.FlyoutHotkey);
         HotkeyStatus.Text = Loc.T("settings.hotkeyHint");
+        VersionText.Text = Loc.F("settings.version", UpdateService.CurrentVersion.ToString(3));
+        AutoUpdateCheck.IsChecked = settings.CheckForUpdates;
 
         var rows = _controller.GetRuleRows();
         RulesList.ItemsSource = rows;
@@ -55,6 +57,20 @@ public partial class SettingsWindow : Window
     {
         if (_loading) return;
         AutoStart.Set(AutoStartCheck.IsChecked == true);
+    }
+
+    private void AutoUpdate_Changed(object sender, RoutedEventArgs e)
+    {
+        if (_loading) return;
+        _controller.SetCheckForUpdates(AutoUpdateCheck.IsChecked == true);
+    }
+
+    private async void CheckUpdates_Click(object sender, RoutedEventArgs e)
+    {
+        CheckUpdatesButton.IsEnabled = false;
+        UpdateStatus.Text = "…";
+        UpdateStatus.Text = await _controller.CheckForUpdatesAsync(manual: true);
+        CheckUpdatesButton.IsEnabled = true;
     }
 
     private void Remember_Changed(object sender, RoutedEventArgs e)

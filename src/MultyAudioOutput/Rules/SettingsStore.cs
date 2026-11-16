@@ -21,6 +21,7 @@ public sealed class AppSettings
     public string Language { get; set; } = "";
     public string CycleHotkey { get; set; } = "Ctrl+Alt+F10";
     public string FlyoutHotkey { get; set; } = "Ctrl+Alt+F11";
+    public bool CheckForUpdates { get; set; } = true;
 }
 
 internal sealed class SettingsStore

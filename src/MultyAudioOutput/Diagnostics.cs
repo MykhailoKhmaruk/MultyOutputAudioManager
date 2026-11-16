@@ -1,4 +1,4 @@
-using System.IO;
+﻿using System.IO;
 using System.Text;
 using MultyAudioOutput.Audio;
 using MultyAudioOutput.Platform;
@@ -42,6 +42,26 @@ internal static class Diagnostics
         {
             sb.AppendLine($"ERROR: {ex}");
         }
+        // --diag-update: run the real update check + install without the UI.
+        if (Environment.GetCommandLineArgs().Any(a => a.Equals("--diag-update", StringComparison.OrdinalIgnoreCase)))
+        {
+            try
+            {
+                sb.AppendLine($"Current version: {UpdateService.CurrentVersion}");
+                var update = Task.Run(UpdateService.CheckAsync).GetAwaiter().GetResult();
+                sb.AppendLine(update is null ? "Update: none" : $"Update: {update.Version} from {update.DownloadUrl}");
+                if (update != null)
+                {
+                    Task.Run(() => UpdateService.InstallAsync(update)).GetAwaiter().GetResult();
+                    sb.AppendLine("Installed and restarted.");
+                }
+            }
+            catch (Exception ex)
+            {
+                sb.AppendLine($"Update ERROR: {ex.Message}");
+            }
+        }
+
         File.WriteAllText(Path.Combine(AppPaths.DataDir, "diag.txt"), sb.ToString());
     }
 }

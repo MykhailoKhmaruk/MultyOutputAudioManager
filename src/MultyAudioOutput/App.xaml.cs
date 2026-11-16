@@ -24,7 +24,14 @@ public partial class App : Application
             return;
         }
 
-        _mutex = new Mutex(true, MutexName, out bool isFirstInstance);
+        // After a self-update the old process may still be shutting down: wait for it.
+        bool justUpdated = e.Args.Any(a => string.Equals(a, "--updated", StringComparison.OrdinalIgnoreCase));
+        _mutex = new Mutex(false, MutexName);
+        bool isFirstInstance;
+        try { isFirstInstance = _mutex.WaitOne(justUpdated ? TimeSpan.FromSeconds(15) : TimeSpan.Zero); }
+        catch (AbandonedMutexException) { isFirstInstance = true; }
+        if (justUpdated) UpdateService.CleanupOldVersion();
+
         if (!isFirstInstance)
         {
             // Already running: ask the first instance to open its panel and quit.
@@ -50,9 +57,10 @@ public partial class App : Application
         _showWait = ThreadPool.RegisterWaitForSingleObject(_showEvent,
             (_, _) => Dispatcher.BeginInvoke(() => _controller?.ShowFlyout()), null, Timeout.Infinite, false);
 
-        bool minimized = e.Args.Any(a => string.Equals(a, "--minimized", StringComparison.OrdinalIgnoreCase));
+        UpdateService.CleanupOldVersion();
+        bool minimized = justUpdated || e.Args.Any(a => string.Equals(a, "--minimized", StringComparison.OrdinalIgnoreCase));
         _controller = new AppController(this);
-        _controller.Start(minimized);
+        _controller.Start(minimized, justUpdated);
     }
 
     protected override void OnExit(ExitEventArgs e)

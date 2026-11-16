@@ -23,8 +23,23 @@ dotnet run --project src/MultyAudioOutput
 Один самодостатній `.exe` (не потребує встановленого .NET):
 
 ```bash
-dotnet publish src/MultyAudioOutput -c Release -r win-x64 --self-contained -p:PublishSingleFile=true -o publish
+dotnet publish src/MultyAudioOutput -c Release -o publish
 ```
+
+Результат — один файл `publish\MultyAudioOutput.exe` (~70 МБ, .NET і всі DLL всередині).
+
+## Оновлення
+Застосунок сам перевіряє GitHub Releases репозиторію `MykhailoKhmaruk/MultyOutputAudioManager`
+(через 15 с після запуску й далі кожні 6 год; вимикається в налаштуваннях). Якщо є новіша версія —
+сповіщення в треї та кнопка «Оновити» в панелі: exe завантажується, замінює себе і перезапускається.
+
+Як випустити нову версію:
+1. Підніміть `<Version>` у `src/MultyAudioOutput/MultyAudioOutput.csproj` (наприклад `0.3.0`).
+2. Зберіть: `dotnet publish src/MultyAudioOutput -c Release -o publish`.
+3. На GitHub → Releases → *Draft a new release*: тег `v0.3.0`, прикріпіть файл `publish\MultyAudioOutput.exe`
+   (назва файлу саме така), опублікуйте.
+
+Репозиторій має бути публічним — інакше програма не побачить релізів.
 
 ## Як це працює
 Використовується той самий механізм Windows, що й у «Параметри → Звук → Гучність програм»

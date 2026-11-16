@@ -27,6 +27,10 @@ internal sealed class AppController : IAppActions, IDisposable
     private HotkeyService? _hotkeys;
     private FlyoutWindow? _flyout;
     private SettingsWindow? _settingsWindow;
+    private readonly DispatcherTimer _updateTimer;
+    private UpdateInfo? _pendingUpdate;
+    private Version? _notifiedVersion;
+    private bool _installing;
 
     public AppController(Application app)
     {
@@ -35,11 +39,17 @@ internal sealed class AppController : IAppActions, IDisposable
         _flyoutVm = new FlyoutViewModel(this);
         _timer = new DispatcherTimer(DispatcherPriority.Background) { Interval = TimeSpan.FromSeconds(2) };
         _timer.Tick += (_, _) => Tick();
+        _updateTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(15) };
+        _updateTimer.Tick += async (_, _) =>
+        {
+            _updateTimer.Interval = TimeSpan.FromHours(6);
+            if (Settings.CheckForUpdates) await CheckForUpdatesAsync(manual: false);
+        };
     }
 
     public AppSettings Settings => _store.Settings;
 
-    public void Start(bool minimized)
+    public void Start(bool minimized, bool justUpdated = false)
     {
         _store.Load();
         if (string.IsNullOrEmpty(Settings.Language)) Settings.Language = Loc.DefaultLanguage;
@@ -59,6 +69,10 @@ internal sealed class AppController : IAppActions, IDisposable
         {
             _tray.ShowWarning("MultyAudioOutput", Loc.T("tray.unsupported"));
         }
+        else if (justUpdated)
+        {
+            _tray.ShowInfo("MultyAudioOutput", Loc.F("update.done", UpdateService.CurrentVersion.ToString(3)));
+        }
         else if (!minimized)
         {
             _tray.ShowInfo(Loc.T("tray.runningTitle"), Loc.T("tray.runningText"));
@@ -66,6 +80,7 @@ internal sealed class AppController : IAppActions, IDisposable
 
         Tick();
         _timer.Start();
+        _updateTimer.Start();
     }
 
     // ---------- polling ----------
@@ -219,6 +234,58 @@ internal sealed class AppController : IAppActions, IDisposable
             : _hotkeys.Register(HotkeyFlyoutId, gesture, ToggleFlyout);
     }
 
+    // ---------- updates ----------
+
+    /// <summary>Returns a status line for the Settings window.</summary>
+    public async Task<string> CheckForUpdatesAsync(bool manual)
+    {
+        try
+        {
+            var update = await UpdateService.CheckAsync();
+            _pendingUpdate = update;
+            _flyoutVm.SetUpdate(update is null ? null : Loc.F("update.banner", update.Version.ToString(3)));
+            if (update is null)
+                return Loc.F("update.upToDate", UpdateService.CurrentVersion.ToString(3));
+
+            if (!manual && _notifiedVersion != update.Version)
+            {
+                _notifiedVersion = update.Version;
+                _tray?.ShowInfo(Loc.T("update.availableTitle"), Loc.F("update.availableText", update.Version.ToString(3)));
+            }
+            return Loc.F("update.banner", update.Version.ToString(3));
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Update check", ex);
+            return Loc.T("update.checkFailed");
+        }
+    }
+
+    public async void InstallUpdate()
+    {
+        if (_pendingUpdate is null || _installing) return;
+        _installing = true;
+        _flyoutVm.IsUpdating = true;
+        try
+        {
+            await UpdateService.InstallAsync(_pendingUpdate);
+            _app.Shutdown(); // the new version is already starting and waits for us to exit
+        }
+        catch (Exception ex)
+        {
+            Log.Error("Update install", ex);
+            _tray?.ShowWarning(Loc.T("update.availableTitle"), Loc.F("update.failed", ex.Message));
+            _flyoutVm.IsUpdating = false;
+            _installing = false;
+        }
+    }
+
+    public void SetCheckForUpdates(bool enabled)
+    {
+        Settings.CheckForUpdates = enabled;
+        _store.Save();
+    }
+
     public void SetLanguage(string code)
     {
         Settings.Language = code;
@@ -230,6 +297,7 @@ internal sealed class AppController : IAppActions, IDisposable
     {
         _tray?.UpdateTexts();
         UpdateHotkeyHint();
+        if (_pendingUpdate != null) _flyoutVm.SetUpdate(Loc.F("update.banner", _pendingUpdate.Version.ToString(3)));
         if (_flyout?.IsVisible == true) RefreshFlyout();
     }
 
@@ -294,6 +362,7 @@ internal sealed class AppController : IAppActions, IDisposable
     public void Dispose()
     {
         _timer.Stop();
+        _updateTimer.Stop();
         SystemEvents.UserPreferenceChanged -= OnUserPreferenceChanged;
         Loc.I.LanguageChanged -= OnLanguageChanged;
         _hotkeys?.Dispose();
